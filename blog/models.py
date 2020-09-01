@@ -4,6 +4,21 @@ from django.contrib.auth.models import User
 from django.db.models import Count
 
 
+class PostQuerySet(models.QuerySet):
+
+    def popular(self):
+        most_popular_posts = Post.objects.annotate(likes_number=Count('likes')).order_by('-likes_number')[:5]
+        return most_popular_posts
+
+    def fetch_with_comments_count(self):
+        most_popular_posts = self.popular()
+        most_popular_posts_ids = [post.id for post in most_popular_posts]
+        posts_with_comments = Post.objects.filter(id__in=most_popular_posts_ids).annotate(comments_amount=Count('comments'))
+        ids_and_comments = posts_with_comments.values_list('id', 'comments_amount')
+        count_for_id = dict(ids_and_comments)
+        return count_for_id
+
+
 class TagQuerySet(models.QuerySet):
 
     def popular(self):
@@ -12,6 +27,7 @@ class TagQuerySet(models.QuerySet):
 
 
 class Post(models.Model):
+    objects = PostQuerySet.as_manager()
     title = models.CharField("Заголовок", max_length=200)
     text = models.TextField("Текст")
     slug = models.SlugField("Название в виде url", max_length=200)
